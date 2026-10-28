@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="할 일">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="robots" content="noindex">
+<title>오늘 할 일 수첩</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* 레이아웃: 가운데 한 단(최대 560px). 날짜 머리 → 주간 띠 → 진행 막대 → 입력 → 목록 */
+:root{
+  --paper:#eef1f6; --sheet:#ffffff; --ink:#17203a; --muted:#646e88; --line:#dbe0ea;
+  --accent:#2c4ed4; --accent-soft:#e5eafb; --done:#1d845a; --warn-soft:#fff4dc; --warn-ink:#7a5410; --err:#b3362f;
+  --f-display:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --paper:#0f131d; --sheet:#171c29; --ink:#e6e9f2; --muted:#959db5; --line:#2a3144;
+  --accent:#8ea4ff; --accent-soft:#222b4a; --done:#4fc58f; --warn-soft:#3a2f17; --warn-ink:#f3cf86; --err:#f08a82; color-scheme:dark}}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(20px + env(safe-area-inset-top,0px));padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+[hidden]{display:none!important}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+a{color:var(--accent)}
+button:focus-visible,input:focus-visible,.text:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.head-date{min-width:0}
+.eyebrow{font-size:13px;color:var(--muted);letter-spacing:.04em;display:flex;gap:8px;align-items:center}
+.rel{color:var(--accent);font-weight:600}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,8vw,40px);line-height:1.1;margin:4px 0 0;text-wrap:balance;letter-spacing:-.01em}
+.nav{display:flex;gap:6px}
+.nav button{height:40px;min-width:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--sheet);font-size:15px}
+.nav button:hover{border-color:var(--accent)}
+.nav .today[disabled]{opacity:.45;cursor:default}
+
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.day{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 7px;border-radius:10px;font-size:12px;color:var(--muted)}
+.day b{font-family:var(--f-num);font-weight:500;font-size:15px;color:var(--ink)}
+.day .meter{width:60%;height:3px;border-radius:2px;background:var(--line);overflow:hidden}
+.day .meter i{display:block;height:100%;background:var(--done)}
+.day.is-today b{color:var(--accent)}
+.day.is-sel{background:var(--sheet);box-shadow:0 0 0 1px var(--line)}
+.day.is-sel b{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px}
+
+.progress{display:flex;align-items:center;gap:12px;font-family:var(--f-num);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--done);transition:width .25s}
+
+.add{display:flex;gap:8px}
+.add input,.setup input{flex:1;min-width:0;height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);font:inherit}
+.add input::placeholder,.setup input::placeholder{color:var(--muted)}
+.btn{height:48px;padding:0 18px;border-radius:12px;background:var(--accent);color:var(--sheet);font-weight:600}
+
+.carry{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--warn-soft);color:var(--warn-ink);font-size:14px}
+.carry button{font-weight:600;text-decoration:underline;text-underline-offset:3px;color:var(--warn-ink)}
+
+.sheet{background:var(--sheet);border-radius:14px;box-shadow:0 0 0 1px var(--line)}
+ul.list{list-style:none;margin:0;padding:0}
+.item{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 4px;border-top:1px solid var(--line);min-height:52px}
+.item:first-child{border-top:0}
+.check{flex:none;width:44px;height:44px;display:grid;place-items:center}
+.check span{width:22px;height:22px;border-radius:6px;border:2px solid var(--muted);display:grid;place-items:center;transition:background .15s,border-color .15s}
+.check svg{width:14px;height:14px;opacity:0;color:var(--sheet)}
+.item.done .check span{background:var(--done);border-color:var(--done)}
+.item.done .check svg{opacity:1}
+.text{flex:1;min-width:0;padding:8px 4px;overflow-wrap:anywhere;cursor:text}
+.item.done .text{color:var(--muted);text-decoration:line-through}
+.from{display:block;font-size:12px;color:var(--muted)}
+.edit{flex:1;min-width:0;height:40px;padding:0 10px;border-radius:8px;border:1px solid var(--accent);background:var(--paper);color:var(--ink);font:inherit}
+.del{flex:none;width:40px;height:40px;border-radius:8px;color:var(--muted);font-size:20px;line-height:1}
+.del:hover{color:var(--ink);background:var(--paper)}
+.empty{padding:28px 20px;text-align:center;color:var(--muted);font-size:15px}
+.empty strong{display:block;color:var(--ink);font-weight:600;margin-bottom:4px}
+
+.foot{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+.foot.ok .dot{background:var(--done)}
+.foot.err{color:var(--err)}
+.foot.err .dot{background:var(--err)}
+.foot button{text-decoration:underline;text-underline-offset:3px;margin-left:auto}
+
+.setup{display:flex;flex-direction:column;gap:14px}
+.setup h1{font-size:clamp(26px,7vw,34px)}
+.setup ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;max-width:65ch}
+.setup .row{display:flex;gap:8px}
+.setup .msg{font-size:14px;min-height:1.5em}
+.setup .msg.err{color:var(--err)}
+code{font-family:var(--f-num);font-size:.9em;background:var(--accent-soft);padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  max-width:calc(100% - 32px);display:flex;gap:14px;align-items:center;padding:12px 16px;border-radius:12px;background:var(--ink);color:var(--sheet);font-size:14px;z-index:20}
+.toast button{color:var(--sheet);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- 처음 한 번: 토큰 입력 -->
+<section class="wrap setup" id="setup" hidden>
+  <div class="eyebrow">처음 한 번만 설정</div>
+  <h1>GitHub 토큰 연결</h1>
+  <p style="margin:0;max-width:65ch">할 일은 비공개 저장소 <code>hanseul01/daily-checklist-data</code>에 저장됩니다. 이 기기에서 그 저장소를 읽고 쓰려면 토큰이 한 번 필요합니다.</p>
+  <ol>
+    <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">토큰 만들기 페이지</a>를 엽니다.</li>
+    <li>Repository access에서 <b>Only select repositories</b> → <code>daily-checklist-data</code>만 고릅니다.</li>
+    <li>Permissions → Repository permissions → <b>Contents</b>를 <b>Read and write</b>로 바꿉니다.</li>
+    <li>맨 아래 Generate token을 누르고, 나온 토큰(<code>github_pat_</code>로 시작)을 복사해 아래에 붙여 넣습니다.</li>
+  </ol>
+  <form class="row" id="tokenForm" autocomplete="off">
+    <input id="tokenInput" type="password" placeholder="github_pat_…" aria-label="GitHub 토큰">
+    <button class="btn" type="submit">연결</button>
+  </form>
+  <div class="msg" id="tokenMsg"></div>
+</section>
+
+<!-- 본 화면 -->
+<div class="wrap" id="app" hidden>
+  <header class="head">
+    <div class="head-date">
+      <div class="eyebrow"><span id="year"></span><span class="rel" id="rel"></span></div>
+      <h1 id="date">불러오는 중</h1>
+    </div>
+    <nav class="nav" aria-label="날짜 이동">
+      <button id="prev" aria-label="이전 날">‹</button>
+      <button id="goToday" class="today">오늘</button>
+      <button id="next" aria-label="다음 날">›</button>
+    </nav>
+  </header>
+
+  <div class="week" id="week" role="group" aria-label="이번 주"></div>
+
+  <div class="progress"><div class="bar"><i id="barFill" style="width:0"></i></div><span id="count">0 / 0</span></div>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input id="newText" type="text" placeholder="할 일을 적고 Enter" aria-label="새 할 일">
+    <button class="btn" type="submit">추가</button>
+  </form>
+
+  <div class="carry" id="carry" hidden>
+    <span id="carryText"></span>
+    <button id="carryBtn" type="button">오늘로 가져오기</button>
+  </div>
+
+  <section class="sheet">
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="empty" hidden></div>
+  </section>
+
+  <div class="foot" id="foot"><span class="dot"></span><span id="footText">불러오는 중</span><button id="resetToken" type="button">토큰 바꾸기</button></div>
+</div>
+
+<div class="toast" id="toast" hidden><span id="toastText"></span><button id="toastBtn" type="button" hidden>되돌리기</button></div>
+
+<script>
+const OWNER='hanseul01',REPO='daily-checklist-data',FILE='data.json';
+const API=`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`;
+const WD=['일','월','화','수','목','금','토'];
+const pad=n=>String(n).padStart(2,'0');
+const keyOf=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseKey=k=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d);};
+const addDays=(k,n)=>{const d=parseKey(k);d.setDate(d.getDate()+n);return keyOf(d);};
+const diffDays=(a,b)=>Math.round((parseKey(a)-parseKey(b))/864e5);
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const $=id=>document.getElementById(id);
+const CHECK='<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const ls={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}},del(k){try{localStorage.removeItem(k);}catch{}}};
+
+let todayKey=keyOf(new Date());
+let sel=todayKey;
+let days={};      // 'YYYY-MM-DD' -> [{id,text,done,from?,carriedTo?}]
+let dirty={};     // 아직 GitHub에 못 올린 날짜 -> 수정 번호
+let sha=null;     // data.json의 현재 버전
+let ready=false;
+let editingId=null;
+let token=ls.get('gh-token');
+
+/* ---------- GitHub 저장 ---------- */
+const b64enc=s=>{const b=new TextEncoder().encode(s);let bin='';for(const x of b)bin+=String.fromCharCode(x);return btoa(bin);};
+const b64dec=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+function gh(method,body){
+  return fetch(API,{method,cache:'no-store',headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},body:body?JSON.stringify(body):undefined});
+}
+function saveCache(){ls.set('days-cache',JSON.stringify(days));ls.set('dirty-cache',JSON.stringify(dirty));}
+function loadCache(){try{days=JSON.parse(ls.get('days-cache')||'{}')||{};dirty=JSON.parse(ls.get('dirty-cache')||'{}')||{};}catch{days={};dirty={};}}
+
+let lastPull=0;
+async function pull(){
+  const r=await gh('GET');
+  if(r.status===401||r.status===403){needToken('토큰이 만료되었거나 권한이 없습니다. 새 토큰을 넣어 주세요.');return false;}
+  if(r.status===404){sha=null;}
+  else if(r.ok){
+    const j=await r.json();sha=j.sha;
+    const remote=(JSON.parse(b64dec(j.content||''))||{}).days||{};
+    for(const k of Object.keys(dirty)){if(days[k]&&days[k].length)remote[k]=days[k];else delete remote[k];}
+    days=remote;
+  }else throw new Error('GET '+r.status);
+  lastPull=Date.now();ready=true;saveCache();return true;
+}
+let saving=false,again=false,timer=null;
+function persist(k){
+  dirty[k]=(dirty[k]||0)+1;
+  if(!(days[k]&&days[k].length))delete days[k];
+  saveCache();setFoot('','저장 중…');
+  clearTimeout(timer);timer=setTimeout(flush,700);
+}
+async function flush(){
+  if(!Object.keys(dirty).length||!token)return;
+  if(saving){again=true;return;}
+  saving=true;
+  try{
+    for(let attempt=0;attempt<4;attempt++){
+      const snap={...dirty};
+      const body={message:'update '+Object.keys(snap).sort().join(' ').slice(0,60),content:b64enc(JSON.stringify({days},null,1))};
+      if(sha)body.sha=sha;
+      const r=await gh('PUT',body);
+      if(r.ok){
+        sha=(await r.json()).content.sha;
+        for(const k in snap)if(dirty[k]===snap[k])delete dirty[k];
+        saveCache();setFoot('ok','저장됨 · 맥과 아이폰에서 같은 목록');return;
+      }
+      if(r.status===401||r.status===403){needToken('토큰이 만료되었거나 권한이 없습니다. 새 토큰을 넣어 주세요.');return;}
+      if(r.status===409||r.status===422){await pull();render();continue;}   // 다른 기기가 먼저 저장함 → 받아서 합친 뒤 다시
+      throw new Error('PUT '+r.status);
+    }
+    throw new Error('retry');
+  }catch(e){
+    setFoot('err','저장하지 못했습니다. 인터넷이 연결되면 다음에 열 때 이어서 저장합니다');
+  }finally{
+    saving=false;
+    if(again){again=false;flush();}
+  }
+}
+async function sync(){
+  try{
+    const ok=await pull();if(!ok)return;
+    render();
+    if(Object.keys(dirty).length)flush();else setFoot('ok','저장됨 · 맥과 아이폰에서 같은 목록');
+  }catch{
+    ready=true;render();
+    setFoot('err','GitHub에 연결하지 못했습니다. 이 기기에 남은 목록을 보여 주는 중입니다');
+  }
+}
+
+/* ---------- 토큰 ---------- */
+function needToken(msg){
+  token=null;ls.del('gh-token');
+  $('app').hidden=true;$('setup').hidden=false;
+  $('tokenMsg').textContent=msg||'';$('tokenMsg').className='msg'+(msg?' err':'');
+}
+$('tokenForm').onsubmit=async e=>{
+  e.preventDefault();
+  const v=$('tokenInput').value.trim();if(!v)return;
+  $('tokenMsg').className='msg';$('tokenMsg').textContent='확인하는 중…';
+  token=v;
+  try{
+    const r=await gh('GET');
+    if(r.ok||r.status===404){
+      ls.set('gh-token',v);$('tokenInput').value='';
+      $('setup').hidden=true;$('app').hidden=false;sync();
+    }else{
+      token=null;$('tokenMsg').className='msg err';
+      $('tokenMsg').textContent='이 토큰으로는 저장소에 들어갈 수 없습니다. 저장소를 daily-checklist-data로 골랐는지, Contents가 Read and write인지 확인해 주세요.';
+    }
+  }catch{
+    token=null;$('tokenMsg').className='msg err';$('tokenMsg').textContent='GitHub에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.';
+  }
+};
+$('resetToken').onclick=()=>needToken('');
+
+/* ---------- 조작 ---------- */
+function items(k=sel){return days[k]||(days[k]=[]);}
+function addItem(text){items().push({id:newId(),text,done:false});persist(sel);render();}
+function toggle(id){const it=items().find(x=>x.id===id);if(!it)return;it.done=!it.done;persist(sel);render();}
+let lastDeleted=null;
+function remove(id){
+  const list=items(),i=list.findIndex(x=>x.id===id);if(i<0)return;
+  lastDeleted={k:sel,item:list[i],i};list.splice(i,1);persist(sel);render();
+  toast('삭제했습니다',()=>{const d=lastDeleted;if(!d)return;items(d.k).splice(d.i,0,d.item);lastDeleted=null;persist(d.k);render();});
+}
+function rename(id,text){
+  const it=items().find(x=>x.id===id);if(!it)return;
+  if(!text){remove(id);return;}
+  if(it.text!==text){it.text=text;persist(sel);}
+}
+function leftover(){
+  const prev=Object.keys(days).filter(k=>k<todayKey&&(days[k]||[]).length).sort().pop();
+  if(!prev)return null;
+  const rest=days[prev].filter(x=>!x.done&&!x.carriedTo);
+  return rest.length?{k:prev,rest}:null;
+}
+function carryOver(){
+  const lo=leftover();if(!lo)return;
+  lo.rest.forEach(x=>{items(todayKey).push({id:newId(),text:x.text,done:false,from:lo.k});x.carriedTo=todayKey;});
+  persist(lo.k);persist(todayKey);render();
+}
+
+/* ---------- 그리기 ---------- */
+function fmtShort(k){const d=parseKey(k);return `${d.getMonth()+1}월 ${d.getDate()}일`;}
+function relLabel(k){
+  const n=diffDays(k,todayKey);
+  if(n===0)return '오늘';if(n===-1)return '어제';if(n===1)return '내일';
+  return n<0?`${-n}일 전`:`${n}일 후`;
+}
+function render(){
+  const d=parseKey(sel);
+  $('year').textContent=`${d.getFullYear()}년`;
+  $('rel').textContent=relLabel(sel);
+  $('date').textContent=`${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일`;
+  $('goToday').disabled=sel===todayKey;
+
+  const mon=addDays(sel,-((d.getDay()+6)%7));
+  $('week').innerHTML='';
+  for(let i=0;i<7;i++){
+    const k=addDays(mon,i),list=days[k]||[],done=list.filter(x=>x.done).length;
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='day'+(k===todayKey?' is-today':'')+(k===sel?' is-sel':'');
+    b.setAttribute('aria-label',`${fmtShort(k)} ${list.length?`${list.length}개 중 ${done}개 완료`:'할 일 없음'}`);
+    b.innerHTML=`<span>${WD[parseKey(k).getDay()]}</span><b>${parseKey(k).getDate()}</b><span class="meter"><i style="width:${list.length?done/list.length*100:0}%"></i></span>`;
+    b.onclick=()=>{sel=k;render();};
+    $('week').appendChild(b);
+  }
+
+  const list=days[sel]||[],done=list.filter(x=>x.done).length;
+  $('count').textContent=`${done} / ${list.length} 완료`;
+  $('barFill').style.width=(list.length?done/list.length*100:0)+'%';
+
+  const lo=sel===todayKey&&ready?leftover():null;
+  $('carry').hidden=!lo;
+  if(lo)$('carryText').textContent=`${fmtShort(lo.k)}에 끝내지 못한 일 ${lo.rest.length}개`;
+
+  if(editingId)return;   // 고치는 중에는 목록을 다시 그리지 않음
+  const ul=$('list');ul.innerHTML='';
+  list.forEach(it=>{
+    const li=document.createElement('li');
+    li.className='item'+(it.done?' done':'');
+    const c=document.createElement('button');
+    c.className='check';c.setAttribute('role','checkbox');c.setAttribute('aria-checked',String(!!it.done));
+    c.setAttribute('aria-label',it.text);c.innerHTML=`<span>${CHECK}</span>`;
+    c.onclick=()=>toggle(it.id);
+    const t=document.createElement('div');
+    t.className='text';t.tabIndex=0;t.title='눌러서 고치기';
+    t.textContent=it.text;
+    if(it.from){const s=document.createElement('span');s.className='from';s.textContent=`${fmtShort(it.from)}에서 넘어옴`;t.appendChild(s);}
+    t.onclick=()=>startEdit(li,it);
+    t.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();startEdit(li,it);}};
+    const x=document.createElement('button');
+    x.className='del';x.setAttribute('aria-label',`${it.text} 삭제`);x.textContent='×';
+    x.onclick=()=>remove(it.id);
+    li.append(c,t,x);ul.appendChild(li);
+  });
+  const empty=$('empty');
+  empty.hidden=list.length>0;
+  if(!list.length){
+    empty.innerHTML=!ready?'<strong>목록을 불러오는 중입니다</strong>'
+      :sel===todayKey?'<strong>오늘 할 일이 아직 없습니다</strong>위 칸에 적고 Enter를 누르면 추가됩니다'
+      :sel<todayKey?'<strong>이날 적어 둔 일이 없습니다</strong>':'<strong>이날 할 일을 미리 적어 둘 수 있습니다</strong>';
+  }
+}
+function startEdit(li,it){
+  editingId=it.id;
+  const t=li.querySelector('.text');
+  const inp=document.createElement('input');
+  inp.className='edit';inp.id='edit-'+it.id;inp.value=it.text;inp.setAttribute('aria-label','할 일 고치기');
+  t.replaceWith(inp);inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);
+  let fin=false;
+  const finish=save=>{if(fin)return;fin=true;editingId=null;if(save)rename(it.id,inp.value.trim());render();};
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();finish(true);}if(e.key==='Escape')finish(false);};
+  inp.onblur=()=>finish(true);
+}
+
+/* ---------- 기타 ---------- */
+function setFoot(cls,text){$('foot').className='foot '+cls;$('footText').textContent=text;}
+let toastTimer;
+function toast(msg,undo){
+  $('toastText').textContent=msg;
+  $('toastBtn').hidden=!undo;
+  $('toastBtn').onclick=()=>{undo&&undo();$('toast').hidden=true;};
+  $('toast').hidden=false;clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{$('toast').hidden=true;},5000);
+}
+$('addForm').onsubmit=e=>{e.preventDefault();const v=$('newText').value.trim();if(!v)return;addItem(v);$('newText').value='';};
+$('prev').onclick=()=>{sel=addDays(sel,-1);render();};
+$('next').onclick=()=>{sel=addDays(sel,1);render();};
+$('goToday').onclick=()=>{sel=todayKey;render();};
+$('carryBtn').onclick=carryOver;
+
+// 다시 화면에 돌아오면: 날짜가 바뀌었는지 보고, 다른 기기에서 고친 내용을 받아 온다
+function onReturn(){
+  const k=keyOf(new Date());
+  if(k!==todayKey){if(sel===todayKey)sel=k;todayKey=k;render();}
+  if(token&&!saving&&!editingId&&Date.now()-lastPull>5000)sync();
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)onReturn();});
+window.addEventListener('focus',onReturn);
+
+loadCache();
+if(token){$('app').hidden=false;render();sync();}
+else needToken('');
+</script>
+</body>
+</html>
